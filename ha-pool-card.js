@@ -1,8 +1,7 @@
-const VERSION = "0.2.1";
+const VERSION = "0.2.2";
 
 const HISTORY_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
-const CAMERA_REFRESH_MS = 10 * 1000;
 
 class HAPoolCard extends HTMLElement {
   constructor() {
@@ -15,6 +14,11 @@ class HAPoolCard extends HTMLElement {
     this._historyFetching = false;
     this._historyFetchedAt = 0;
     this._tab = "drift";
+    this._renderedTab = undefined;
+    this._liveCameraEntity = undefined;
+    this._liveCameraCard = undefined;
+    this._cameraGeneration = 0;
+    this.shadowRoot.addEventListener("click", (event) => this._handleClick(event));
   }
 
   static getStubConfig() {
@@ -71,23 +75,25 @@ class HAPoolCard extends HTMLElement {
 
   setConfig(config) {
     const stub = HAPoolCard.getStubConfig();
-    this._config = { ...stub, ...config, scripts: { ...stub.scripts, ...(config?.scripts || {}) } };
-    this._render();
+    const nextConfig = { ...stub, ...config, scripts: { ...stub.scripts, ...(config?.scripts || {}) } };
+    const signature = JSON.stringify(nextConfig);
+    this._config = nextConfig;
+    if (signature === this._configSignature) return;
+    this._configSignature = signature;
+    this._sig = "";
+    this._render(true);
   }
 
   connectedCallback() {
     this._fetchHistory();
     if (!this._historyTimer) this._historyTimer = setInterval(() => this._fetchHistory(), HISTORY_REFRESH_MS);
     if (!this._tickTimer) this._tickTimer = setInterval(() => this._render(), TICK_MS);
-    if (!this._cameraTimer) this._cameraTimer = setInterval(() => this._refreshCamera(), CAMERA_REFRESH_MS);
   }
   disconnectedCallback() {
     clearInterval(this._historyTimer);
     clearInterval(this._tickTimer);
-    clearInterval(this._cameraTimer);
     this._historyTimer = undefined;
     this._tickTimer = undefined;
-    this._cameraTimer = undefined;
   }
 
   _watchedIds() {
@@ -106,8 +112,12 @@ class HAPoolCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    if (this._liveCameraCard) this._liveCameraCard.hass = hass;
     const ids = this._watchedIds();
-    const sig = JSON.stringify(ids.map((id) => [id, hass?.states?.[id]?.state, hass?.states?.[id]?.last_changed]));
+    const sig = JSON.stringify(ids.map((id) => {
+      const state = hass?.states?.[id];
+      return [id, state?.state, state?.last_changed, state?.attributes?.entity_picture];
+    }));
     if (sig !== this._sig) {
       this._sig = sig;
       this._render();
@@ -175,13 +185,6 @@ class HAPoolCard extends HTMLElement {
       if (ts >= startMs && ts < endMs) values.push(value);
     }
     return values;
-  }
-
-  _refreshCamera() {
-    const img = this.shadowRoot?.querySelector(".camera-img");
-    const c = this._config;
-    const url = this._s(c.camera_entity)?.attributes?.entity_picture;
-    if (img && url) img.src = url.includes("?") ? `${url}&_=${Date.now()}` : `${url}?_=${Date.now()}`;
   }
 
   _s(id) {
@@ -414,7 +417,7 @@ class HAPoolCard extends HTMLElement {
     const personInWater = this._on(c.person_in_water_entity);
     const personTerrace = this._on(c.person_terrace_entity);
     return `<div class="camera" data-more="${this._esc(c.camera_entity)}">
-      ${url ? `<img class="camera-img" src="${this._esc(url)}" alt="Poolkamera">` : `<div class="camera-empty"><ha-icon icon="mdi:cctv-off"></ha-icon><span>Intet kamerabillede</span></div>`}
+      <div class="camera-media" data-camera-media>${url ? "" : `<div class="camera-empty"><ha-icon icon="mdi:cctv-off"></ha-icon><span>Intet kamerabillede</span></div>`}</div>
       <div class="camera-badges">
         ${personInWater ? `<span class="camera-badge on"><ha-icon icon="mdi:account-swim"></ha-icon>Person i vandet</span>` : ""}
         ${personTerrace ? `<span class="camera-badge on"><ha-icon icon="mdi:account-eye"></ha-icon>Person på terrassen</span>` : ""}
@@ -557,7 +560,7 @@ class HAPoolCard extends HTMLElement {
     </svg>`;
   }
 
-  _render() {
+  _render(forceStructure = false) {
     if (!this.shadowRoot) return;
     const c = this._config;
 
@@ -581,7 +584,7 @@ class HAPoolCard extends HTMLElement {
         ${this._assistantHtml()}`;
     }
 
-    this.shadowRoot.innerHTML = `<style>
+    const markup = `<style>
       :host{display:block;--good:var(--dashboard-success, var(--success-color, #20e3a2));--warn:var(--dashboard-warning, var(--warning-color, #f59e0b));--danger:var(--dashboard-danger, var(--error-color, #ef4444));--accent:#0891b2;--teal:#14b8a6;--edge:var(--dashboard-border-neutral, var(--divider-color, rgba(127,145,165,.2)));--muted:var(--dashboard-icon-muted, var(--disabled-text-color, #64748b))}
       *{box-sizing:border-box}
       ha-card{padding:20px;border-radius:22px;background:var(--card-background-color);border:1px solid var(--edge);color:var(--primary-text-color);box-shadow:var(--ha-card-box-shadow)}
@@ -605,7 +608,12 @@ class HAPoolCard extends HTMLElement {
       .row-value{font-size:12.5px;font-weight:800;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
       .camera{position:relative;width:100%;border-radius:16px;overflow:hidden;border:1px solid var(--edge);aspect-ratio:16/9;background:#0b141d;cursor:pointer;margin-bottom:16px}
-      .camera-img{width:100%;height:100%;object-fit:cover;display:block}
+      .camera-media{position:absolute;inset:0;overflow:hidden;background:#0b141d;contain:layout paint}
+      .camera-media>*{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;display:block;overflow:hidden}
+      .camera-snapshot{z-index:2;object-fit:cover;opacity:1;transition:opacity .28s ease;background:#0b141d;pointer-events:none}
+      .camera-live-card{z-index:1;opacity:0;transition:opacity .28s ease;pointer-events:none}
+      .camera-media.ready .camera-snapshot{opacity:0}
+      .camera-media.ready .camera-live-card{opacity:1}
       .camera-empty{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--secondary-text-color);font-size:12px}
       .camera-badges{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap}
       .camera-badge{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--warn) 85%,black 5%);color:#1a1200}
@@ -720,39 +728,147 @@ class HAPoolCard extends HTMLElement {
       </button>
     </ha-card>`;
 
-    this.shadowRoot.querySelectorAll("[data-tab]").forEach((el) =>
-      el.addEventListener("click", () => {
-        this._tab = el.dataset.tab;
-        this._render();
-      }),
-    );
-    this.shadowRoot.querySelectorAll("[data-more]").forEach((el) => el.addEventListener("click", () => this._more(el.dataset.more)));
-    this.shadowRoot.querySelectorAll("[data-nav]").forEach((el) =>
-      el.addEventListener("click", () => {
-        history.pushState(null, "", el.dataset.nav);
-        window.dispatchEvent(new Event("location-changed"));
-      }),
-    );
-    this.shadowRoot.querySelectorAll("[data-select-option]").forEach((el) =>
-      el.addEventListener("click", () => {
-        if (!this._confirmed(el.dataset.confirm)) return;
-        this._call("input_select.select_option", this._config.override_select_entity, { option: el.dataset.selectOption });
-      }),
-    );
-    this.shadowRoot.querySelectorAll("[data-script]").forEach((el) =>
-      el.addEventListener("click", () => {
-        if (!this._confirmed(el.dataset.confirm)) return;
-        this._call("script.turn_on", this._config.scripts[el.dataset.script]);
-      }),
-    );
-    this.shadowRoot.querySelector("[data-toggle-pump]")?.addEventListener("click", () => {
+    const currentCard = this.shadowRoot.querySelector("ha-card");
+    const structureChanged = forceStructure || !currentCard || this._renderedTab !== this._tab;
+    if (structureChanged) {
+      this._cameraGeneration += 1;
+      this._liveCameraEntity = undefined;
+      this._liveCameraCard = undefined;
+      this.shadowRoot.innerHTML = markup;
+      this._renderedTab = this._tab;
+    } else {
+      const template = document.createElement("template");
+      template.innerHTML = markup;
+      this._morphNode(currentCard, template.content.querySelector("ha-card"));
+    }
+    this._ensureLiveCamera();
+  }
+
+  _morphNode(current, next) {
+    if (!current || !next) return;
+    if (current.nodeType !== next.nodeType || current.nodeName !== next.nodeName) {
+      current.replaceWith(next.cloneNode(true));
+      return;
+    }
+    if (current.nodeType === Node.TEXT_NODE) {
+      if (current.nodeValue !== next.nodeValue) current.nodeValue = next.nodeValue;
+      return;
+    }
+    if (current.nodeType !== Node.ELEMENT_NODE) return;
+    if (current.matches?.("[data-camera-media]")) return;
+    for (const attribute of Array.from(current.attributes)) {
+      if (!next.hasAttribute(attribute.name)) current.removeAttribute(attribute.name);
+    }
+    for (const attribute of Array.from(next.attributes)) {
+      if (current.getAttribute(attribute.name) !== attribute.value) current.setAttribute(attribute.name, attribute.value);
+    }
+    const currentChildren = Array.from(current.childNodes);
+    const nextChildren = Array.from(next.childNodes);
+    const count = Math.max(currentChildren.length, nextChildren.length);
+    for (let index = count - 1; index >= 0; index -= 1) {
+      if (!nextChildren[index]) currentChildren[index]?.remove();
+    }
+    for (let index = 0; index < nextChildren.length; index += 1) {
+      const existing = current.childNodes[index];
+      if (!existing) current.appendChild(nextChildren[index].cloneNode(true));
+      else this._morphNode(existing, nextChildren[index]);
+    }
+  }
+
+  _handleClick(event) {
+    const target = event.target?.closest?.("[data-tab],[data-toggle-pump],[data-select-option],[data-script],[data-nav],[data-more]");
+    if (!target) return;
+    if (target.dataset.tab) {
+      if (target.dataset.tab === this._tab) return;
+      this._tab = target.dataset.tab;
+      this._render(true);
+      return;
+    }
+    if (target.hasAttribute("data-toggle-pump")) {
       const running = this._on(this._config.pump_running_entity);
       const commanded = this._on(this._config.pump_switch_entity);
       const option = running || commanded ? "Fra (til jeg tænder)" : "1 time";
       this._call("input_select.select_option", this._config.override_select_entity, { option });
-    });
+      return;
+    }
+    if (target.dataset.selectOption) {
+      if (this._confirmed(target.dataset.confirm)) {
+        this._call("input_select.select_option", this._config.override_select_entity, { option: target.dataset.selectOption });
+      }
+      return;
+    }
+    if (target.dataset.script) {
+      if (this._confirmed(target.dataset.confirm)) this._call("script.turn_on", this._config.scripts[target.dataset.script]);
+      return;
+    }
+    if (target.dataset.nav) {
+      history.pushState(null, "", target.dataset.nav);
+      window.dispatchEvent(new Event("location-changed"));
+      return;
+    }
+    if (target.dataset.more) this._more(target.dataset.more);
+  }
 
-    this._refreshCamera();
+  async _ensureLiveCamera() {
+    const entity = this._config.camera_entity;
+    const media = this.shadowRoot.querySelector("[data-camera-media]");
+    if (!media || !this._hass || !entity) return;
+    if (this._liveCameraEntity === entity && this._liveCameraCard?.isConnected) {
+      this._liveCameraCard.hass = this._hass;
+      return;
+    }
+    const state = this._s(entity);
+    if (!state) return;
+    const generation = ++this._cameraGeneration;
+    this._liveCameraEntity = entity;
+    this._liveCameraCard = undefined;
+    media.classList.remove("ready");
+    const snapshot = document.createElement("img");
+    snapshot.className = "camera-snapshot";
+    snapshot.alt = "Poolkamera";
+    snapshot.decoding = "async";
+    const entityPicture = state.attributes?.entity_picture;
+    if (entityPicture) snapshot.src = this._hass.hassUrl(entityPicture);
+    else if (state.attributes?.access_token) snapshot.src = this._hass.hassUrl(`/api/camera_proxy/${entity}?token=${state.attributes.access_token}`);
+    media.replaceChildren(snapshot);
+    try {
+      const helpers = await window.loadCardHelpers();
+      if (generation !== this._cameraGeneration || !media.isConnected || this._config.camera_entity !== entity) return;
+      const card = await helpers.createCardElement({
+        type: "picture-elements",
+        camera_image: entity,
+        camera_view: "live",
+        elements: [],
+        aspect_ratio: "16:9",
+        fit_mode: "cover",
+        tap_action: { action: "none" },
+      });
+      card.classList.add("camera-live-card");
+      card.hass = this._hass;
+      media.appendChild(card);
+      this._liveCameraCard = card;
+      this._revealCameraWhenReady(media, card, generation, entity);
+    } catch (error) {
+      console.error("HA Pool Card: live stream could not be loaded", error);
+    }
+  }
+
+  _mediaReady(node) {
+    if (!node) return false;
+    if (typeof HTMLVideoElement !== "undefined" && node instanceof HTMLVideoElement && node.readyState >= 2) return true;
+    if (typeof HTMLImageElement !== "undefined" && node instanceof HTMLImageElement && node.complete && node.naturalWidth > 0) return true;
+    if (node.shadowRoot && this._mediaReady(node.shadowRoot)) return true;
+    return Array.from(node.children || []).some((child) => this._mediaReady(child));
+  }
+
+  _revealCameraWhenReady(media, card, generation, entity, attempt = 0) {
+    if (generation !== this._cameraGeneration || this._liveCameraEntity !== entity || !card.isConnected) return;
+    if ((attempt >= 4 && this._mediaReady(card)) || attempt >= 80) {
+      media.classList.add("ready");
+      setTimeout(() => media.querySelector(".camera-snapshot")?.remove(), 320);
+      return;
+    }
+    setTimeout(() => this._revealCameraWhenReady(media, card, generation, entity, attempt + 1), 100);
   }
 
   _sectionHeading(icon, title) {
