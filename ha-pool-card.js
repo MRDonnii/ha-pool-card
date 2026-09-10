@@ -1,4 +1,4 @@
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const HISTORY_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
@@ -14,6 +14,7 @@ class HAPoolCard extends HTMLElement {
     this._historyDays = [];
     this._historyFetching = false;
     this._historyFetchedAt = 0;
+    this._tab = "drift";
   }
 
   static getStubConfig() {
@@ -421,18 +422,20 @@ class HAPoolCard extends HTMLElement {
     </div>`;
   }
 
+  _row(icon, label, value, entity) {
+    return `<div class="row" data-more="${this._esc(entity)}"><ha-icon icon="${icon}"></ha-icon><span class="row-label">${this._esc(label)}</span><span class="row-value">${value}</span></div>`;
+  }
+
   _statsGridHtml() {
     const c = this._config;
     const running = this._on(c.pump_running_entity);
-    const tile = (icon, value, label, entity) =>
-      `<div class="stat-tile" data-more="${this._esc(entity)}"><ha-icon icon="${icon}"></ha-icon><div><b>${value}</b><small>${label}</small></div></div>`;
-    return `<div class="stats-grid">
-      ${tile("mdi:thermometer-water", `${this._text(c.water_temp_entity)}°`, "Vandtemperatur", c.water_temp_entity)}
-      ${tile("mdi:pump", running ? "Kører" : "Stoppet", "Sandfilter", c.pump_running_entity)}
-      ${tile("mdi:thermometer-chevron-up", `${this._text(c.temp_rise_today_entity)}°`, "Steget i dag", c.temp_rise_today_entity)}
-      ${tile("mdi:cash", `${this._text(c.cost_today_entity)} kr`, "Pumpepris i dag", c.cost_today_entity)}
-      ${tile("mdi:progress-clock", this._s(c.filter_progress_entity)?.attributes?.tekst || `${this._text(c.filter_progress_entity)}%`, "Kørt / mål", c.filter_progress_entity)}
-      ${tile("mdi:list-status", this._text(c.pump_status_entity), "Driftstatus", c.pump_status_entity)}
+    return `<div class="row-list">
+      ${this._row("mdi:thermometer-water", "Vandtemperatur", `${this._text(c.water_temp_entity)}°`, c.water_temp_entity)}
+      ${this._row("mdi:pump", "Sandfilter", running ? "Kører" : "Stoppet", c.pump_running_entity)}
+      ${this._row("mdi:thermometer-chevron-up", "Steget i dag", `${this._text(c.temp_rise_today_entity)}°`, c.temp_rise_today_entity)}
+      ${this._row("mdi:cash", "Pumpepris i dag", `${this._text(c.cost_today_entity)} kr`, c.cost_today_entity)}
+      ${this._row("mdi:progress-clock", "Filtreret / mål", this._s(c.filter_progress_entity)?.attributes?.tekst || `${this._text(c.filter_progress_entity)}%`, c.filter_progress_entity)}
+      ${this._row("mdi:list-status", "Driftstatus", this._text(c.pump_status_entity), c.pump_status_entity)}
     </div>`;
   }
 
@@ -454,15 +457,13 @@ class HAPoolCard extends HTMLElement {
     const coverText = coverState === "Usikker"
       ? `Cover: ${cover?.attributes?.applied_state || "--"} (senest kendt)`
       : `Coveret er ${coverState.toLowerCase()}`;
-    const tile = (icon, value, label, entity) =>
-      `<div class="stat-tile" data-more="${this._esc(entity)}"><ha-icon icon="${icon}"></ha-icon><div><b>${this._esc(value)}</b><small>${label}</small></div></div>`;
-    return `<div class="stats-grid">
-      ${tile("mdi:robot-outline", this._text(c.next_action_entity, "Afventer data"), "Næste handling", c.next_action_entity)}
-      ${tile("mdi:account-swim", this._text(c.best_swim_time_entity, "Afventer prognose"), "Bedste badetid", c.best_swim_time_entity)}
-      ${tile("mdi:thermometer", `Lav ${Number.isFinite(low) ? low.toFixed(1) : "--"}° · Høj ${Number.isFinite(high) ? high.toFixed(1) : "--"}°`, "Døgnets temperatur", c.water_temp_entity)}
-      ${tile("mdi:shield-sun", coverText, "Poolcover", c.cover_status_entity)}
-      ${tile("mdi:bullseye-arrow", this._text(c.forecast_accuracy_entity, "Afventer målinger"), "Forecast-nøjagtighed", c.forecast_accuracy_entity)}
-      ${tile("mdi:tools", this._text(c.maintenance_entity, "Afventer registrering"), "Vedligeholdelse", c.maintenance_entity)}
+    return `<div class="row-list">
+      ${this._row("mdi:robot-outline", "Næste handling", this._esc(this._text(c.next_action_entity, "Afventer data")), c.next_action_entity)}
+      ${this._row("mdi:account-swim", "Bedste badetid", this._esc(this._text(c.best_swim_time_entity, "Afventer prognose")), c.best_swim_time_entity)}
+      ${this._row("mdi:thermometer", "Døgnets temperatur", `Lav ${Number.isFinite(low) ? low.toFixed(1) : "--"}° · Høj ${Number.isFinite(high) ? high.toFixed(1) : "--"}°`, c.water_temp_entity)}
+      ${this._row("mdi:shield-sun", "Poolcover", this._esc(coverText), c.cover_status_entity)}
+      ${this._row("mdi:bullseye-arrow", "Forecast-nøjagtighed", this._esc(this._text(c.forecast_accuracy_entity, "Afventer målinger")), c.forecast_accuracy_entity)}
+      ${this._row("mdi:tools", "Vedligeholdelse", this._esc(this._text(c.maintenance_entity, "Afventer registrering")), c.maintenance_entity)}
     </div>`;
   }
 
@@ -560,22 +561,50 @@ class HAPoolCard extends HTMLElement {
     if (!this.shadowRoot) return;
     const c = this._config;
 
+    const tabs = [
+      ["drift", "Drift", "mdi:pump"],
+      ["historik", "Historik", "mdi:chart-line"],
+      ["overblik", "Overblik", "mdi:view-list"],
+    ];
+    let tabHtml = "";
+    if (this._tab === "drift") {
+      tabHtml = `${this._warningHtml()}${this._pumpHeaderHtml()}${this._controlPanelHtml()}${this._cameraHtml()}`;
+    } else if (this._tab === "historik") {
+      tabHtml = `${this._sectionHeading("mdi:chart-line", "Pooltemperatur og sandfilter · 7 døgn")}
+        <div class="chart-wrap">${this._historyChartHtml()}</div>
+        ${this._sectionHeading("mdi:thermometer-lines", "Vejrbaseret forecast")}
+        <div class="chart-wrap">${this._forecastChartHtml()}</div>`;
+    } else {
+      tabHtml = `${this._sectionHeading("mdi:pool", "Poolområdet")}
+        ${this._statsGridHtml()}
+        ${this._sectionHeading("mdi:robot-outline", "Poolassistent")}
+        ${this._assistantHtml()}`;
+    }
+
     this.shadowRoot.innerHTML = `<style>
       :host{display:block;--good:var(--dashboard-success, var(--success-color, #20e3a2));--warn:var(--dashboard-warning, var(--warning-color, #f59e0b));--danger:var(--dashboard-danger, var(--error-color, #ef4444));--accent:#0891b2;--teal:#14b8a6;--edge:var(--dashboard-border-neutral, var(--divider-color, rgba(127,145,165,.2)));--muted:var(--dashboard-icon-muted, var(--disabled-text-color, #64748b))}
       *{box-sizing:border-box}
-      ha-card{padding:22px;border-radius:26px;background:linear-gradient(150deg,color-mix(in srgb,var(--card-background-color) 94%,var(--accent) 6%),var(--card-background-color));border:1px solid var(--edge);color:var(--primary-text-color);box-shadow:var(--ha-card-box-shadow);position:relative;overflow:hidden}
-      .bg-icon{position:absolute;right:-40px;bottom:-40px;width:190px;height:190px;opacity:.08;color:var(--accent);pointer-events:none;animation:poolFloat 6s ease-in-out infinite}
-      .bg-icon ha-icon{width:100%!important;height:100%!important;--mdc-icon-size:190px}
-      @keyframes poolFloat{0%,100%{transform:translate(0,0) rotate(0deg)}50%{transform:translate(-8px,-6px) rotate(-4deg)}}
-      .head{display:flex;align-items:center;gap:12px;margin-bottom:18px;position:relative;z-index:1}
-      .head ha-icon{--mdc-icon-size:26px;color:var(--accent)}
+      ha-card{padding:20px;border-radius:22px;background:var(--card-background-color);border:1px solid var(--edge);color:var(--primary-text-color);box-shadow:var(--ha-card-box-shadow)}
+      .head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+      .head ha-icon{--mdc-icon-size:24px;color:var(--accent)}
       .head strong{display:block;font-size:16px}
       .head span{display:block;color:var(--secondary-text-color);font-size:12px;margin-top:2px}
-      .section-heading{display:flex;align-items:center;gap:8px;margin:22px 0 12px;color:var(--secondary-text-color);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;position:relative;z-index:1}
+      .tabs{display:flex;gap:6px;margin-bottom:16px}
+      .tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 8px;border-radius:11px;border:1px solid var(--edge);background:transparent;color:var(--secondary-text-color);font-size:12px;font-weight:800;cursor:pointer}
+      .tab ha-icon{--mdc-icon-size:16px}
+      .tab.active{color:#fff;background:var(--accent);border-color:var(--accent)}
+      .section-heading{display:flex;align-items:center;gap:8px;margin:20px 0 10px;color:var(--secondary-text-color);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
       .section-heading:first-of-type{margin-top:0}
       .section-heading ha-icon{--mdc-icon-size:16px;color:var(--accent)}
 
-      .camera{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--edge);aspect-ratio:16/9;background:#0b141d;cursor:pointer}
+      .row-list{display:flex;flex-direction:column;gap:1px;border:1px solid var(--edge);border-radius:14px;overflow:hidden}
+      .row{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--card-background-color);cursor:pointer}
+      .row+.row{border-top:1px solid var(--edge)}
+      .row ha-icon{--mdc-icon-size:17px;color:var(--accent);flex:0 0 auto}
+      .row-label{flex:1;font-size:12.5px;color:var(--secondary-text-color);min-width:0}
+      .row-value{font-size:12.5px;font-weight:800;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+      .camera{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--edge);aspect-ratio:16/9;max-height:200px;background:#0b141d;cursor:pointer;margin-top:14px}
       .camera-img{width:100%;height:100%;object-fit:cover;display:block}
       .camera-empty{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--secondary-text-color);font-size:12px}
       .camera-badges{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap}
@@ -647,13 +676,7 @@ class HAPoolCard extends HTMLElement {
       .wizard-btn.green{border-color:color-mix(in srgb,var(--good) 40%,transparent);background:color-mix(in srgb,var(--good) 12%,transparent);color:var(--good)}
       .wizard-btn.danger{border-color:color-mix(in srgb,var(--danger) 40%,transparent);background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger)}
 
-      .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;position:relative;z-index:1}
-      .stat-tile{display:flex;align-items:center;gap:9px;padding:12px;border:1px solid var(--edge);border-radius:15px;cursor:pointer}
-      .stat-tile ha-icon{--mdc-icon-size:19px;color:var(--accent);flex:0 0 auto}
-      .stat-tile b{display:block;font-size:12.5px;font-weight:800;line-height:1.25}
-      .stat-tile small{display:block;margin-top:2px;font-size:9.5px;color:var(--secondary-text-color);text-transform:uppercase;letter-spacing:.02em}
-
-      .warning-banner{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;margin-top:14px;cursor:pointer;font-size:13px;font-weight:700}
+      .warning-banner{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;margin-bottom:14px;cursor:pointer;font-size:13px;font-weight:700}
       .warning-banner.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);color:var(--warn)}
       .warning-banner.danger{background:color-mix(in srgb,var(--danger) 14%,transparent);border:1px solid color-mix(in srgb,var(--danger) 40%,transparent);color:var(--danger)}
       .warning-banner ha-icon{--mdc-icon-size:20px}
@@ -678,31 +701,18 @@ class HAPoolCard extends HTMLElement {
       .settings-btn{display:flex;align-items:center;gap:10px;width:100%;margin-top:20px;padding:13px 14px;border-radius:15px;border:1px solid var(--edge);background:transparent;color:var(--primary-text-color);cursor:pointer;text-align:left;position:relative;z-index:1}
       .settings-btn ha-icon{--mdc-icon-size:20px;color:var(--accent)}
       .settings-btn small{display:block;color:var(--secondary-text-color);font-size:11px;margin-top:2px}
-      @media(max-width:560px){.pump-stats{grid-template-columns:repeat(2,1fr)}.mode-row{grid-template-columns:repeat(3,1fr)}.action-row{grid-template-columns:1fr 1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}}
+      @media(max-width:560px){.pump-stats{grid-template-columns:repeat(2,1fr)}.mode-row{grid-template-columns:repeat(3,1fr)}.action-row{grid-template-columns:1fr 1fr}}
     </style>
     <ha-card>
-      <div class="bg-icon"><ha-icon icon="mdi:pool"></ha-icon></div>
       <div class="head">
         <ha-icon icon="mdi:pool"></ha-icon>
         <div><strong>${this._esc(c.title)}</strong><span>${this._esc(c.subtitle)}</span></div>
       </div>
+      <div class="tabs">${tabs
+        .map((t) => `<button class="tab ${this._tab === t[0] ? "active" : ""}" data-tab="${t[0]}"><ha-icon icon="${t[2]}"></ha-icon>${t[1]}</button>`)
+        .join("")}</div>
 
-      ${this._cameraHtml()}
-      ${this._pumpHeaderHtml()}
-      ${this._controlPanelHtml()}
-      ${this._warningHtml()}
-
-      ${this._sectionHeading("mdi:pool", "Poolområdet")}
-      ${this._statsGridHtml()}
-
-      ${this._sectionHeading("mdi:robot-outline", "Poolassistent")}
-      ${this._assistantHtml()}
-
-      ${this._sectionHeading("mdi:chart-line", "Pooltemperatur og sandfilter · 7 døgn")}
-      <div class="chart-wrap">${this._historyChartHtml()}</div>
-
-      ${this._sectionHeading("mdi:thermometer-lines", "Vejrbaseret forecast")}
-      <div class="chart-wrap">${this._forecastChartHtml()}</div>
+      ${tabHtml}
 
       <button class="settings-btn" data-nav="${this._esc(c.settings_path)}">
         <ha-icon icon="mdi:tune-variant"></ha-icon>
@@ -710,6 +720,12 @@ class HAPoolCard extends HTMLElement {
       </button>
     </ha-card>`;
 
+    this.shadowRoot.querySelectorAll("[data-tab]").forEach((el) =>
+      el.addEventListener("click", () => {
+        this._tab = el.dataset.tab;
+        this._render();
+      }),
+    );
     this.shadowRoot.querySelectorAll("[data-more]").forEach((el) => el.addEventListener("click", () => this._more(el.dataset.more)));
     this.shadowRoot.querySelectorAll("[data-nav]").forEach((el) =>
       el.addEventListener("click", () => {
