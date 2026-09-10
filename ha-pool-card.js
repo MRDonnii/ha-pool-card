@@ -1,4 +1,4 @@
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
 
 const HISTORY_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
@@ -568,7 +568,7 @@ class HAPoolCard extends HTMLElement {
     ];
     let tabHtml = "";
     if (this._tab === "drift") {
-      tabHtml = `${this._warningHtml()}${this._pumpHeaderHtml()}${this._controlPanelHtml()}${this._cameraHtml()}`;
+      tabHtml = `${this._cameraHtml()}${this._warningHtml()}${this._pumpHeaderHtml()}${this._controlPanelHtml()}`;
     } else if (this._tab === "historik") {
       tabHtml = `${this._sectionHeading("mdi:chart-line", "Pooltemperatur og sandfilter · 7 døgn")}
         <div class="chart-wrap">${this._historyChartHtml()}</div>
@@ -604,7 +604,7 @@ class HAPoolCard extends HTMLElement {
       .row-label{flex:1;font-size:12.5px;color:var(--secondary-text-color);min-width:0}
       .row-value{font-size:12.5px;font-weight:800;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-      .camera{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--edge);aspect-ratio:16/9;max-height:200px;background:#0b141d;cursor:pointer;margin-top:14px}
+      .camera{position:relative;width:100%;border-radius:16px;overflow:hidden;border:1px solid var(--edge);aspect-ratio:16/9;background:#0b141d;cursor:pointer;margin-bottom:16px}
       .camera-img{width:100%;height:100%;object-fit:cover;display:block}
       .camera-empty{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--secondary-text-color);font-size:12px}
       .camera-badges{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;flex-wrap:wrap}
