@@ -1,4 +1,4 @@
-const VERSION = "0.2.3";
+const VERSION = "0.2.4";
 
 const HISTORY_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
@@ -587,7 +587,7 @@ class HAPoolCard extends HTMLElement {
     const markup = `<style>
       :host{display:block;--good:var(--dashboard-success, var(--success-color, #20e3a2));--warn:var(--dashboard-warning, var(--warning-color, #f59e0b));--danger:var(--dashboard-danger, var(--error-color, #ef4444));--accent:#0891b2;--teal:#14b8a6;--edge:var(--dashboard-border-neutral, var(--divider-color, rgba(127,145,165,.2)));--muted:var(--dashboard-icon-muted, var(--disabled-text-color, #64748b));--card-surface:var(--dashboard-card-bg,var(--ha-card-background,var(--card-background-color,#111820)));--card-solid:var(--card-background-color,#111820)}
       *{box-sizing:border-box}
-      ha-card{padding:20px;border-radius:22px;background:var(--card-surface);border:1px solid var(--edge);color:var(--primary-text-color);box-shadow:var(--ha-card-box-shadow)}
+      ha-card{padding:20px;border-radius:22px;background:var(--card-surface);border:var(--ha-card-border-width,1px) solid var(--ha-card-border-color,var(--edge));color:var(--primary-text-color);box-shadow:var(--ha-card-box-shadow)}
       .head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
       .head ha-icon{--mdc-icon-size:24px;color:var(--accent)}
       .head strong{display:block;font-size:16px}
