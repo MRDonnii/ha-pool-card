@@ -1,4 +1,4 @@
-const VERSION = "0.2.2";
+const VERSION = "0.2.3";
 
 const HISTORY_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
@@ -585,9 +585,9 @@ class HAPoolCard extends HTMLElement {
     }
 
     const markup = `<style>
-      :host{display:block;--good:var(--dashboard-success, var(--success-color, #20e3a2));--warn:var(--dashboard-warning, var(--warning-color, #f59e0b));--danger:var(--dashboard-danger, var(--error-color, #ef4444));--accent:#0891b2;--teal:#14b8a6;--edge:var(--dashboard-border-neutral, var(--divider-color, rgba(127,145,165,.2)));--muted:var(--dashboard-icon-muted, var(--disabled-text-color, #64748b))}
+      :host{display:block;--good:var(--dashboard-success, var(--success-color, #20e3a2));--warn:var(--dashboard-warning, var(--warning-color, #f59e0b));--danger:var(--dashboard-danger, var(--error-color, #ef4444));--accent:#0891b2;--teal:#14b8a6;--edge:var(--dashboard-border-neutral, var(--divider-color, rgba(127,145,165,.2)));--muted:var(--dashboard-icon-muted, var(--disabled-text-color, #64748b));--card-surface:var(--dashboard-card-bg,var(--ha-card-background,var(--card-background-color,#111820)));--card-solid:var(--card-background-color,#111820)}
       *{box-sizing:border-box}
-      ha-card{padding:20px;border-radius:22px;background:var(--card-background-color);border:1px solid var(--edge);color:var(--primary-text-color);box-shadow:var(--ha-card-box-shadow)}
+      ha-card{padding:20px;border-radius:22px;background:var(--card-surface);border:1px solid var(--edge);color:var(--primary-text-color);box-shadow:var(--ha-card-box-shadow)}
       .head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
       .head ha-icon{--mdc-icon-size:24px;color:var(--accent)}
       .head strong{display:block;font-size:16px}
@@ -601,7 +601,7 @@ class HAPoolCard extends HTMLElement {
       .section-heading ha-icon{--mdc-icon-size:16px;color:var(--accent)}
 
       .row-list{display:flex;flex-direction:column;gap:1px;border:1px solid var(--edge);border-radius:14px;overflow:hidden}
-      .row{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--card-background-color);cursor:pointer}
+      .row{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--card-surface);cursor:pointer}
       .row+.row{border-top:1px solid var(--edge)}
       .row ha-icon{--mdc-icon-size:17px;color:var(--accent);flex:0 0 auto}
       .row-label{flex:1;font-size:12.5px;color:var(--secondary-text-color);min-width:0}
@@ -656,7 +656,7 @@ class HAPoolCard extends HTMLElement {
       .mode-row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:14px}
       .mode-btn{display:flex;flex-direction:column;align-items:center;gap:4px;height:58px;border-radius:13px;border:1px solid var(--edge);background:color-mix(in srgb,var(--secondary-text-color) 6%,transparent);color:var(--secondary-text-color);font-size:10.5px;font-weight:800;cursor:pointer}
       .mode-btn ha-icon{--mdc-icon-size:19px}
-      .mode-btn.active{border-color:var(--teal);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 24%,var(--card-background-color)),color-mix(in srgb,var(--teal) 14%,var(--card-background-color)));color:var(--primary-text-color)}
+      .mode-btn.active{border-color:var(--teal);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 24%,var(--card-solid)),color-mix(in srgb,var(--teal) 14%,var(--card-solid)));color:var(--primary-text-color)}
       .mode-btn.active ha-icon{color:var(--teal)}
       .action-row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
       .action-btn{display:flex;flex-direction:column;align-items:center;gap:4px;height:58px;border-radius:13px;border:1px solid var(--edge);background:color-mix(in srgb,var(--secondary-text-color) 6%,transparent);color:var(--primary-text-color);font-size:10.5px;font-weight:800;cursor:pointer}
@@ -670,11 +670,11 @@ class HAPoolCard extends HTMLElement {
       .wizard-note ha-icon{--mdc-icon-size:22px;flex:0 0 auto}
       .wizard-note b{display:block;font-size:13.5px;font-weight:900}
       .wizard-note small{display:block;margin-top:3px;font-size:11px;line-height:1.35;color:var(--primary-text-color)}
-      .wizard-note.amber{background:linear-gradient(135deg,color-mix(in srgb,var(--warn) 19%,var(--card-background-color)),color-mix(in srgb,var(--warn) 7%,var(--card-background-color)));border:1px solid color-mix(in srgb,var(--warn) 45%,transparent)}
+      .wizard-note.amber{background:linear-gradient(135deg,color-mix(in srgb,var(--warn) 19%,var(--card-solid)),color-mix(in srgb,var(--warn) 7%,var(--card-solid)));border:1px solid color-mix(in srgb,var(--warn) 45%,transparent)}
       .wizard-note.amber ha-icon,.wizard-note.amber b{color:var(--warn)}
-      .wizard-note.cyan{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 19%,var(--card-background-color)),color-mix(in srgb,var(--accent) 7%,var(--card-background-color)));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+      .wizard-note.cyan{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 19%,var(--card-solid)),color-mix(in srgb,var(--accent) 7%,var(--card-solid)));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
       .wizard-note.cyan ha-icon,.wizard-note.cyan b{color:var(--accent)}
-      .wizard-note.green{background:linear-gradient(135deg,color-mix(in srgb,var(--good) 19%,var(--card-background-color)),color-mix(in srgb,var(--good) 7%,var(--card-background-color)));border:1px solid color-mix(in srgb,var(--good) 45%,transparent)}
+      .wizard-note.green{background:linear-gradient(135deg,color-mix(in srgb,var(--good) 19%,var(--card-solid)),color-mix(in srgb,var(--good) 7%,var(--card-solid)));border:1px solid color-mix(in srgb,var(--good) 45%,transparent)}
       .wizard-note.green ha-icon,.wizard-note.green b{color:var(--good)}
       .wizard-timer{display:flex;align-items:center;gap:8px;margin-top:8px;padding:10px 12px;border-radius:13px;border:1px solid var(--edge);font-size:12px;font-weight:800}
       .wizard-timer ha-icon{--mdc-icon-size:17px;color:var(--accent)}
