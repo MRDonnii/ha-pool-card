@@ -1,4 +1,4 @@
-const VERSION = "0.2.4";
+const VERSION = "0.3.0";
 
 const HISTORY_REFRESH_MS = 10 * 60 * 1000;
 const TICK_MS = 30 * 1000;
@@ -600,9 +600,8 @@ class HAPoolCard extends HTMLElement {
       .section-heading:first-of-type{margin-top:0}
       .section-heading ha-icon{--mdc-icon-size:16px;color:var(--accent)}
 
-      .row-list{display:flex;flex-direction:column;gap:1px;border:1px solid var(--edge);border-radius:14px;overflow:hidden}
-      .row{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--card-surface);cursor:pointer}
-      .row+.row{border-top:1px solid var(--edge)}
+      .row-list{display:flex;flex-direction:column;gap:8px}
+      .row{position:relative;display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid color-mix(in srgb,var(--accent) 16%,transparent);border-left:3px solid var(--accent);border-radius:12px;background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 6%,transparent),transparent 60%),var(--card-surface);box-shadow:0 4px 12px rgba(0,0,0,.1);cursor:pointer}
       .row ha-icon{--mdc-icon-size:17px;color:var(--accent);flex:0 0 auto}
       .row-label{flex:1;font-size:12.5px;color:var(--secondary-text-color);min-width:0}
       .row-value{font-size:12.5px;font-weight:800;text-align:right;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -619,7 +618,7 @@ class HAPoolCard extends HTMLElement {
       .camera-badge{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:800;background:color-mix(in srgb,var(--warn) 85%,black 5%);color:#1a1200}
       .camera-badge ha-icon{--mdc-icon-size:14px}
 
-      .pump-card{border:1px solid var(--edge);border-radius:20px;padding:16px 16px 14px;cursor:pointer;position:relative;z-index:1}
+      .pump-card{border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);border-left:4px solid var(--accent);border-radius:18px;padding:16px 16px 14px;cursor:pointer;position:relative;z-index:1;background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 7%,transparent),transparent 55%),var(--card-surface);box-shadow:0 6px 18px rgba(0,0,0,.12)}
       .pump-top{display:flex;align-items:flex-start;gap:12px}
       .pump-iconbox{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
       .pump-iconbox.running{background:color-mix(in srgb,var(--teal) 20%,transparent);color:var(--teal)}
