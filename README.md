@@ -11,8 +11,10 @@ page into one component:
 - **Guided backwash / rinse wizard** — a 6-step state machine that walks
   through preparing, starting, running and finishing a sand-filter backwash
   or rinse cycle, with the right confirmation prompts at each step
-- **Camera** — periodically refreshed snapshot with occupancy badges (person
-  in the water / person on the terrace)
+- **Camera** — Home Assistant live stream from the configurable camera entity,
+  with a snapshot placeholder during startup and occupancy badges (person in
+  the water / person on the terrace). The default is the UniFi Protect medium
+  resolution channel.
 - **Status grid** — water temperature, pump state, temperature rise today,
   running cost today, filter progress, operating status
 - **Status warning banner** — only shown when something needs attention
@@ -41,6 +43,11 @@ scripts:
   # ...
 settings_path: /your-dashboard/pool-settings
 ```
+
+The camera is rendered through Home Assistant's native live camera card with
+`camera_view: live`. Sensor and timer updates patch the existing card DOM, so
+they do not recreate or restart an active stream. A full content rebuild only
+happens when the user changes tab or the card configuration changes.
 
 The card expects a Danish-language `input_select.backwash_status` with the
 options `Inaktiv`, `Klar til BACKWASH`, `BACKWASH kører`, `Klar til RINSE`,
